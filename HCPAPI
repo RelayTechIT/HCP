@@ -1,0 +1,18 @@
+function HCPAPI-GetCustomerID {
+    param(
+        $HCPAPICred,
+        $SearchString
+    )
+    
+    # HCP API Headers
+        $headers = @{
+        'Authorization' =   "Bearer $HCPAPICred"
+        'Accept'        =   'application/json'
+        'Method'        =   'Get'
+    }
+    $Query = Invoke-RestMethod -Headers $headers -Uri "https://api.housecallpro.com/customers?q=$($SearchString)"
+    if ($Query.customers) {
+      Write-Host "$($Query.customers.count) customers matched your search criteria"
+    }
+    return $Query.customers
+}
