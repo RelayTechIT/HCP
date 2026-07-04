@@ -16,3 +16,66 @@ function HCPAPI-GetCustomerID {
     }
     return $Query.customers
 }
+
+function HCPAPI-GetCustomerLeads {
+    param(
+        $HCPAPICred,
+        $CustomerID
+    )
+    
+    # HCP API Headers
+        $headers = @{
+        'Authorization' =   "Bearer $HCPAPICred"
+        'Accept'        =   'application/json'
+        'Method'        =   'Get'
+    }
+    $Query = Invoke-RestMethod -Headers $headers -Uri "https://api.housecallpro.com/leads?page_size=200&customer_id=$($CustomerId)"
+    return $Query.leads
+}
+
+function HCPAPI-GetCustomerEstimates {
+    param(
+        $HCPAPICred,
+        $CustomerID
+    )
+    
+    # HCP API Headers
+        $headers = @{
+        'Authorization' =   "Bearer $HCPAPICred"
+        'Accept'        =   'application/json'
+        'Method'        =   'Get'
+    }
+    $Query = Invoke-RestMethod -Headers $headers -Uri "https://api.housecallpro.com/estimates?page_size=200&customer_id=$($CustomerId)"
+    return $Query.estimates
+}
+
+function HCPAPI-GetCustomerJobs {
+    param(
+        $HCPAPICred,
+        $CustomerID
+    )
+    
+    # HCP API Headers
+        $headers = @{
+        'Authorization' =   "Bearer $HCPAPICred"
+        'Accept'        =   'application/json'
+        'Method'        =   'Get'
+    }
+    $Query = Invoke-RestMethod -Headers $headers -Uri "https://api.housecallpro.com/jobs?page_size=200&customer_id=$($CustomerId)"
+    return $Query.jobs
+}
+
+function HCPAPI-GetCustomerInvoices {
+    param(
+        $HCPAPICred,
+        $CustomerID
+    )  
+    # HCP API Headers
+        $headers = @{
+        'Authorization' =   "Bearer $HCPAPICred"
+        'Accept'        =   'application/json'
+        'Method'        =   'Get'
+    }
+    $Query = Invoke-RestMethod -Headers $headers -Uri "https://api.housecallpro.com/invoices?page_size=200&customer_id=$($CustomerId)"
+    return $Query.invoices
+}
