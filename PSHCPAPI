@@ -1,0 +1,428 @@
+function Set-HCPAPIKey {
+    param(
+        $HCPAPI
+    )
+    
+    if (test-path $HCPAPI) {
+        $HCPAPIXML          =   import-clixml $HCPAPI
+        $global:HCPAPICred         =   ConvertFrom-SecureString -SecureString $($HCPAPIXML) -AsPlainText
+    } else {
+        $global:HCPAPICred += @{"Authorization" =   "Bearer $($APIKey)"}
+    }
+}
+
+function Get-HCPCustomer {
+    param (
+        [Parameter(Mandatory)]
+        [ValidateSet("ANY","customer_id","SearchString", "location_ids")]
+        [string]$MatchType,
+        $MatchID,
+        [switch]$include_attachments,
+        [switch]$include_do_not_service,
+        $PageSize,
+        $ScheduledEndMax,
+        $ScheduledStartMax,
+        $ScheduledEndMin,
+        $ScheduledStartMin,
+        [ValidateSet("created_at","updated_at","id")]
+        [string]$SortBy,
+        [ValidateSet("asc","desc")]
+        [string]$SortDirection,
+        [ValidateSet("unscheduled","scheduled", "in_progress", "completed", "cancelled")]
+        [switch]$WorkStatusUnscheduled,
+        [switch]$WorkStatusScheduled,
+        [switch]$WorkStatusInProgress,
+        [switch]$WorkStatusCompleted,
+        [switch]$WorkStatusCanceled
+    )
+
+    if (!$global:HCPAPICred) {
+        Write-Host "You must set the HCP API Key with the Set-HCPAPIKey first!"
+        Return
+    } else {
+        # HCP API Headers
+        $headers = @{
+            'Authorization' =   "Bearer $HCPAPICred"
+            'Accept'        =   'application/json'
+            'Method'        =   'Get'
+        }
+    }
+
+    $BaseURI = "https://api.housecallpro.com/customers"
+    $QueryParams = @()
+
+    if ($MatchType -eq "customer_id") {
+        $BaseURI += "/"+$MatchID
+    } elseif ($MatchType -eq "SearchString") {
+        $QueryParams += "q=$($MatchID)"
+    } elseif ($MatchType -eq "location_ids") {
+        Write-Host "Matching by location_ids isn't finished yet."
+        Return
+    } elseif ($MatchType -eq "ANY") {
+        # for now do nothing
+    } else {
+        Write-Host "A MatchType is required to continue"
+        Return
+    }
+
+    if ($include_attachments)     {$QueryParams += "expand[]=attachments"}
+    if ($include_do_not_service)     {$QueryParams += "expand[]=do_not_service"}
+    if ($Page)                  {$QueryParams += "page=$($Page)"}
+    if ($PageSize)              {$QueryParams += "page_size=$($PageSize)"}
+    if ($SortBy)                {$QueryParams += "sort_by=$($SortBy)"}
+    if ($SortDirection)         {$QueryParams += "sort_direction=$($SortDirection)"}
+
+    $URI = "$($BaseURI)?$($QueryParams -join '&')"
+
+    # Write-Host "BaseURI is $($BaseURI)"
+    Write-Host "QueryParams is $($QueryParams -join '&')"
+    # Write-Host "Query is $($Query)"
+        # Write-Host "URI is $($URI)"
+    # Write-Host "Running query Invoke-RestMethod -Headers `$headers -Uri $($URI)"
+    $QueryResults = Invoke-RestMethod -Headers $headers -Uri $URI
+
+    if ($QueryResults.Customers) {
+        return $QueryResults.Customers
+    } else {
+        return $QueryResults
+    }
+}
+
+function Get-HCPEstimate {
+    param (
+        [Parameter(Mandatory)]
+        [ValidateSet("ANY","customer_id","employee_ids", "estimate_id", "location_ids")]
+        [string]$MatchType,
+        $MatchID,
+        [switch]$ExpandAttachments,
+        $PageSize,
+        $ScheduledEndMax,
+        $ScheduledStartMax,
+        $ScheduledEndMin,
+        $ScheduledStartMin,
+        [ValidateSet("created_at","updated_at","id")]
+        [string]$SortBy,
+        [ValidateSet("asc","desc")]
+        [string]$SortDirection,
+        [ValidateSet("unscheduled","scheduled", "in_progress", "completed", "cancelled")]
+        [switch]$WorkStatusUnscheduled,
+        [switch]$WorkStatusScheduled,
+        [switch]$WorkStatusInProgress,
+        [switch]$WorkStatusCompleted,
+        [switch]$WorkStatusCanceled
+    )
+
+    
+
+    if (!$global:HCPAPICred) {
+        Write-Host "You must set the HCP API Key with the Set-HCPAPIKey first!"
+        Return
+    } else {
+        # HCP API Headers
+        $headers = @{
+            'Authorization' =   "Bearer $HCPAPICred"
+            'Accept'        =   'application/json'
+            'Method'        =   'Get'
+        }
+    }
+
+
+    $BaseURI = "https://api.housecallpro.com/estimates"
+    $QueryParams = @()
+
+    if ($MatchType -eq "estimate_id") {
+        $BaseURI += "/$($MatchID)"
+    } elseif ($MatchType -eq "customer_id") {
+        $QueryParams += "customer_id="+$MatchID
+    } elseif ($MatchType -eq "employee_ids") {
+        foreach ($EmpID in ($MatchID.split(','))){
+            Write-Host $EmpID
+            $QueryParams += "employee_ids[]=$($EmpID)"
+        }
+    } elseif ($MatchType -eq "location_ids") {
+        Write-Host "Matching by location_ids isn't finished yet."
+        Return
+    } elseif ($MatchType -eq "ANY") {
+        # for now do nothing
+    } else {
+        Write-Host "A MatchType is required to continue"
+        Return
+    }
+
+    if ($ExpandAttachments)     {$QueryParams += "expand[]=attachments"}
+    if ($Page)                  {$QueryParams += "page=$($Page)"}
+    if ($PageSize)              {$QueryParams += "page_size=$($PageSize)"}
+    if ($SortBy)                {$QueryParams += "sort_by=$($SortBy)"}
+    if ($SortDirection)         {$QueryParams += "sort_direction=$($SortDirection)"}
+    if ($WorkStatusUnscheduled) {$QueryParams += "work_status[]=unscheduled"}
+    if ($WorkStatusScheduled)   {$QueryParams += "work_status[]=scheduled"}
+    if ($WorkStatusInProgress)  {$QueryParams += "work_status[]=in_progress"}
+    if ($WorkStatusCompleted)   {$QueryParams += "work_status[]=completed"}
+    if ($WorkStatusCanceled)    {$QueryParams += "work_status[]=canceled"}
+
+    
+    $URI = "$($BaseURI)?$($QueryParams -join '&')"
+
+    # Write-Host "BaseURI is $($BaseURI)"
+    # Write-Host "QueryParams is $($QueryParams -join '&')"
+    # Write-Host "Query is $($Query)"
+        # Write-Host "URI is $($URI)"
+    # Write-Host "Running query Invoke-RestMethod -Headers `$headers -Uri $($URI)"
+    $QueryResults = Invoke-RestMethod -Headers $headers -Uri $URI
+    
+    if ($QueryResults.Estimates) {
+        return $QueryResults.Estimates
+    } else {
+        return $QueryResults
+    }
+}
+
+function Get-HCPJob {
+    param (
+        [Parameter(Mandatory)]
+        [ValidateSet("ANY","job_id","customer_id","employee_ids", "location_ids")]
+        [string]$MatchType,
+        $MatchID,
+        [switch]$ExpandAttachments,
+        [switch]$ExpandAppointments,
+        $PageSize,
+        $ScheduledEndMax,
+        $ScheduledStartMax,
+        $ScheduledEndMin,
+        $ScheduledStartMin,
+        [ValidateSet("created_at","updated_at","id")]
+        [string]$SortBy,
+        [ValidateSet("asc","desc")]
+        [string]$SortDirection,
+        [ValidateSet("unscheduled","scheduled", "in_progress", "completed", "cancelled")]
+        [switch]$WorkStatusUnscheduled,
+        [switch]$WorkStatusScheduled,
+        [switch]$WorkStatusInProgress,
+        [switch]$WorkStatusCompleted,
+        [switch]$WorkStatusCanceled
+    )
+
+    
+
+    if (!$global:HCPAPICred) {
+        Write-Host "You must set the HCP API Key with the Set-HCPAPIKey first!"
+        Return
+    } else {
+        # HCP API Headers
+        $headers = @{
+            'Authorization' =   "Bearer $HCPAPICred"
+            'Accept'        =   'application/json'
+            'Method'        =   'Get'
+        }
+    }
+
+
+    $BaseURI = "https://api.housecallpro.com/jobs"
+    $QueryParams = @()
+
+    if ($MatchType -eq "job_id") {
+        $BaseURI += "/$($MatchID)"
+    } elseif ($MatchType -eq "customer_id") {
+        $QueryParams += "customer_id="+$MatchID
+    } elseif ($MatchType -eq "employee_ids") {
+        foreach ($EmpID in ($MatchID.split(','))){
+            Write-Host $EmpID
+            $QueryParams += "employee_ids[]=$($EmpID)"
+        }
+    } elseif ($MatchType -eq "location_ids") {
+        Write-Host "Matching by location_ids isn't finished yet."
+        Return
+    } elseif ($MatchType -eq "ANY") {
+        # for now do nothing
+    } else {
+        Write-Host "A MatchType is required to continue"
+        Return
+    }
+
+    if ($ExpandAttachments)     {$QueryParams += "expand[]=attachments"}
+    if ($ExpandAppointments)     {$QueryParams += "expand[]=appointments"}
+    if ($Page)                  {$QueryParams += "page=$($Page)"}
+    if ($PageSize)              {$QueryParams += "page_size=$($PageSize)"}
+    if ($SortBy)                {$QueryParams += "sort_by=$($SortBy)"}
+    if ($SortDirection)         {$QueryParams += "sort_direction=$($SortDirection)"}
+    if ($WorkStatusUnscheduled) {$QueryParams += "work_status[]=unscheduled"}
+    if ($WorkStatusScheduled)   {$QueryParams += "work_status[]=scheduled"}
+    if ($WorkStatusInProgress)  {$QueryParams += "work_status[]=in_progress"}
+    if ($WorkStatusCompleted)   {$QueryParams += "work_status[]=completed"}
+    if ($WorkStatusCanceled)    {$QueryParams += "work_status[]=canceled"}
+
+    
+    $URI = "$($BaseURI)?$($QueryParams -join '&')"
+
+    # Write-Host "BaseURI is $($BaseURI)"
+    # Write-Host "QueryParams is $($QueryParams -join '&')"
+    # Write-Host "Query is $($Query)"
+        # Write-Host "URI is $($URI)"
+    # Write-Host "Running query Invoke-RestMethod -Headers `$headers -Uri $($URI)"
+    $QueryResults = Invoke-RestMethod -Headers $headers -Uri $URI
+    
+    if ($QueryResults.Jobs) {
+        return $QueryResults.Jobs
+    } else {
+        return $QueryResults
+    }
+}
+
+function Get-HCPInvoice {
+    param (
+        [Parameter(Mandatory)]
+        [ValidateSet("ANY","invoice_id","customer_id","location_ids")]
+        [string]$MatchType,
+        $MatchID,
+        $PageSize,
+        [ValidateSet("consumer_financing","credit_card","ach external","mobile_check_deposit")]
+        [string]$PaymentMethod,
+        [ValidateSet("amount","created_at","due_amount","due_at", "invoice_number","paid_at","sent_at","status","updated_at")]
+        [string]$SortBy,
+        [ValidateSet("asc","desc")]
+        [string]$SortDirection,
+        [ValidateSet("open","pending_payment", "paid", "voided", "uncollectible", "canceled")]
+        $Status
+    )
+
+    
+
+    if (!$global:HCPAPICred) {
+        Write-Host "You must set the HCP API Key with the Set-HCPAPIKey first!"
+        Return
+    } else {
+        # HCP API Headers
+        $headers = @{
+            'Authorization' =   "Bearer $HCPAPICred"
+            'Accept'        =   'application/json'
+            'Method'        =   'Get'
+        }
+    }
+
+
+    $BaseURI = "https://api.housecallpro.com/invoices"
+    $QueryParams = @()
+
+    if ($MatchType -eq "invoice_id") {
+        $BaseURI += "/$($MatchID)"
+    } elseif ($MatchType -eq "customer_id") {
+        $QueryParams += "customer_id="+$MatchID
+    } elseif ($MatchType -eq "employee_ids") {
+        foreach ($EmpID in ($MatchID.split(','))){
+            Write-Host $EmpID
+            $QueryParams += "employee_ids[]=$($EmpID)"
+        }
+    } elseif ($MatchType -eq "location_ids") {
+        Write-Host "Matching by location_ids isn't finished yet."
+        Return
+    } elseif ($MatchType -eq "ANY") {
+        # for now do nothing
+    } else {
+        Write-Host "A MatchType is required to continue"
+        Return
+    }
+
+    if ($ExpandAttachments)     {$QueryParams += "expand[]=attachments"}
+    if ($ExpandAppointments)     {$QueryParams += "expand[]=appointments"}
+    if ($Page)                  {$QueryParams += "page=$($Page)"}
+    if ($PageSize)              {$QueryParams += "page_size=$($PageSize)"}
+    if ($SortBy)                {$QueryParams += "sort_by=$($SortBy)"}
+    if ($SortDirection)         {$QueryParams += "sort_direction=$($SortDirection)"}
+
+    
+    $URI = "$($BaseURI)?$($QueryParams -join '&')"
+
+    # Write-Host "BaseURI is $($BaseURI)"
+    # Write-Host "QueryParams is $($QueryParams -join '&')"
+    # Write-Host "Query is $($Query)"
+        # Write-Host "URI is $($URI)"
+    # Write-Host "Running query Invoke-RestMethod -Headers `$headers -Uri $($URI)"
+    $QueryResults = Invoke-RestMethod -Headers $headers -Uri $URI
+    
+    if ($QueryResults.Leads) {
+        return $QueryResults.Leads
+    } else {
+        return $QueryResults
+    }
+}
+
+function Get-HCPLead {
+    param (
+        [Parameter(Mandatory)]
+        [ValidateSet("ANY","lead_id","customer_id","employee_ids", "location_ids","lead_source")]
+        [string]$MatchType,
+        $MatchID,
+        [switch]$ExpandAttachments,
+        [switch]$ExpandAppointments,
+        $PageSize,
+        [ValidateSet("created_at","updated_at","id", "status")]
+        [string]$SortBy,
+        [ValidateSet("asc","desc")]
+        [string]$SortDirection,
+        [ValidateSet("lost","open", "won")]
+        $Status
+    )
+
+    
+
+    if (!$global:HCPAPICred) {
+        Write-Host "You must set the HCP API Key with the Set-HCPAPIKey first!"
+        Return
+    } else {
+        # HCP API Headers
+        $headers = @{
+            'Authorization' =   "Bearer $HCPAPICred"
+            'Accept'        =   'application/json'
+            'Method'        =   'Get'
+        }
+    }
+
+
+    $BaseURI = "https://api.housecallpro.com/leads"
+    $QueryParams = @()
+
+    if ($MatchType -eq "lead_id") {
+        $BaseURI += "/$($MatchID)"
+    } elseif ($MatchType -eq "customer_id") {
+        $QueryParams += "customer_id="+$MatchID
+    } elseif ($MatchType -eq "employee_ids") {
+        foreach ($EmpID in ($MatchID.split(','))){
+            Write-Host $EmpID
+            $QueryParams += "employee_ids[]=$($EmpID)"
+        }
+    } elseif ($MatchType -eq "lead_source") {
+        Write-Host "Matching by lead_source isn't finished yet."
+        Return
+    } elseif ($MatchType -eq "location_ids") {
+        Write-Host "Matching by location_ids isn't finished yet."
+        Return
+    } elseif ($MatchType -eq "ANY") {
+        # for now do nothing
+    } else {
+        Write-Host "A MatchType is required to continue"
+        Return
+    }
+
+    if ($ExpandAttachments)     {$QueryParams += "expand[]=attachments"}
+    if ($ExpandAppointments)     {$QueryParams += "expand[]=appointments"}
+    if ($Page)                  {$QueryParams += "page=$($Page)"}
+    if ($PageSize)              {$QueryParams += "page_size=$($PageSize)"}
+    if ($SortBy)                {$QueryParams += "sort_by=$($SortBy)"}
+    if ($SortDirection)         {$QueryParams += "sort_direction=$($SortDirection)"}
+
+    
+    $URI = "$($BaseURI)?$($QueryParams -join '&')"
+
+    # Write-Host "BaseURI is $($BaseURI)"
+    # Write-Host "QueryParams is $($QueryParams -join '&')"
+    # Write-Host "Query is $($Query)"
+        # Write-Host "URI is $($URI)"
+    # Write-Host "Running query Invoke-RestMethod -Headers `$headers -Uri $($URI)"
+    $QueryResults = Invoke-RestMethod -Headers $headers -Uri $URI
+    
+    if ($QueryResults.Leads) {
+        return $QueryResults.Leads
+    } else {
+        return $QueryResults
+    }
+}
